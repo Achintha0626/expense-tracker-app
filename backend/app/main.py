@@ -22,11 +22,10 @@ app = FastAPI(
 
 Base.metadata.create_all(bind=engine)
 
-# Add CORS middleware to allow local Flutter dev and Android emulator
+# Add CORS middleware to allow Flutter web and mobile clients
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://10.0.2.2"],
-    allow_origin_regex=r"^https?://localhost(:\d+)?$",
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
