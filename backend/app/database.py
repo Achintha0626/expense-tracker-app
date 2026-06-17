@@ -7,7 +7,16 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DATABASE_URL)
+# Ensure DATABASE_URL is provided
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable is not set")
+
+# For hosted Postgres services like Neon require SSL mode; add connect_args when using postgres
+connect_args = {}
+if DATABASE_URL.startswith("postgres"):
+    connect_args = {"sslmode": "require"}
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 
 SessionLocal = sessionmaker(
     autocommit=False,
