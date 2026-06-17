@@ -109,11 +109,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildTransactionTile(TransactionItem transaction) {
+    final categoryText = transaction.subCategory != null && transaction.subCategory!.isNotEmpty
+        ? '${transaction.category} • ${transaction.subCategory}'
+        : transaction.category;
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ListTile(
         title: Text(transaction.title),
-        subtitle: Text('${transaction.category} • ${DateFormat.yMMMd().format(transaction.transactionDate)}'),
+        subtitle: Text('$categoryText • ${DateFormat.yMMMd().format(transaction.transactionDate)}'),
         trailing: Text(
           _formatCurrency(transaction.amount),
           style: TextStyle(

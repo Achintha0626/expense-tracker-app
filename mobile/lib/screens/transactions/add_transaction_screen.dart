@@ -15,6 +15,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
+  final _subCategoryController = TextEditingController();
   final _descriptionController = TextEditingController();
   final TransactionService _transactionService = TransactionService();
 
@@ -27,6 +28,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       'Food',
       'Transport',
       'Bills',
+      'Phone',
       'Shopping',
       'Health',
       'Education',
@@ -75,6 +77,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         amount: amount,
         transactionType: _transactionType,
         category: _category!,
+        subCategory: _subCategoryController.text.trim().isEmpty
+            ? null
+            : _subCategoryController.text.trim(),
         description: _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
@@ -188,6 +193,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _subCategoryController,
+                decoration: const InputDecoration(
+                  labelText: 'Sub Category (optional)',
+                  hintText: 'e.g. Electricity, Phone bill, Freelance gig',
+                ),
+                maxLines: 1,
               ),
               const SizedBox(height: 16),
               TextFormField(

@@ -11,6 +11,7 @@ class TransactionService {
     required double amount,
     required String transactionType,
     required String category,
+    String? subCategory,
     String? description,
   }) async {
     final token = await _authService.getToken();
@@ -21,6 +22,7 @@ class TransactionService {
         'amount': amount,
         'transaction_type': transactionType,
         'category': category,
+        'sub_category': subCategory,
         'description': description,
       },
       token: token,

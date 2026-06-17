@@ -5,6 +5,7 @@ class TransactionItem {
   final double amount;
   final String transactionType;
   final String category;
+  final String? subCategory;
   final String? description;
   final DateTime transactionDate;
   final DateTime createdAt;
@@ -16,6 +17,7 @@ class TransactionItem {
     required this.amount,
     required this.transactionType,
     required this.category,
+    required this.subCategory,
     required this.description,
     required this.transactionDate,
     required this.createdAt,
@@ -29,6 +31,7 @@ class TransactionItem {
       amount: (json['amount'] as num).toDouble(),
       transactionType: json['transaction_type'] as String,
       category: json['category'] as String,
+      subCategory: json['sub_category'] as String?,
       description: json['description'] as String?,
       transactionDate: DateTime.parse(json['transaction_date'] as String),
       createdAt: DateTime.parse(json['created_at'] as String),
