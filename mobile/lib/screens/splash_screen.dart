@@ -22,6 +22,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkAuthentication() async {
     final token = await _authService.getToken();
+    if (!mounted) return;
     if (token != null && token.isNotEmpty) {
       Navigator.pushReplacement(
         context,

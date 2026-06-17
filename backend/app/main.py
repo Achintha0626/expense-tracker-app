@@ -22,6 +22,17 @@ app = FastAPI(
 
 Base.metadata.create_all(bind=engine)
 
+# Temporary startup migration: add sub_category column if it does not exist.
+with engine.connect() as connection:
+    existing_columns = connection.execute(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'transactions'"
+    ).fetchall()
+    column_names = {row[0] for row in existing_columns}
+    if 'sub_category' not in column_names:
+        connection.execute(
+            "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS sub_category VARCHAR"
+        )
+
 # Add CORS middleware to allow Flutter web and mobile clients
 app.add_middleware(
     CORSMiddleware,

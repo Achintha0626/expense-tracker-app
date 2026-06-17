@@ -34,6 +34,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         success = true;
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const LoginScreen()),

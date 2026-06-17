@@ -37,6 +37,7 @@ class Transaction(Base):
     amount = Column(Float, nullable=False)
     transaction_type = Column(String, nullable=False)
     category = Column(String, nullable=False)
+    sub_category = Column(String, nullable=True)
     description = Column(String, nullable=True)
     transaction_date = Column(
         DateTime(timezone=True),

@@ -37,6 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (token != null && token.isNotEmpty) {
           await _authService.saveToken(token);
           success = true;
+          if (!mounted) return;
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const DashboardScreen()),

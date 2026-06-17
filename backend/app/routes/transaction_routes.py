@@ -60,6 +60,7 @@ def create_transaction(
         amount=transaction.amount,
         transaction_type=transaction.transaction_type,
         category=transaction.category,
+        sub_category=transaction.sub_category,
         description=transaction.description,
         transaction_date=transaction.transaction_date,
     )
@@ -159,6 +160,8 @@ def update_transaction(
         transaction.transaction_type = transaction_update.transaction_type
     if transaction_update.category is not None:
         transaction.category = transaction_update.category
+    if transaction_update.sub_category is not None:
+        transaction.sub_category = transaction_update.sub_category
     if transaction_update.description is not None:
         transaction.description = transaction_update.description
     if transaction_update.transaction_date is not None:

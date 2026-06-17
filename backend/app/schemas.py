@@ -34,6 +34,7 @@ class TransactionCreate(BaseModel):
     amount: float
     transaction_type: str
     category: str
+    sub_category: Optional[str] = None
     description: Optional[str] = None
     transaction_date: Optional[datetime] = None
 
@@ -43,6 +44,7 @@ class TransactionUpdate(BaseModel):
     amount: Optional[float] = None
     transaction_type: Optional[str] = None
     category: Optional[str] = None
+    sub_category: Optional[str] = None
     description: Optional[str] = None
     transaction_date: Optional[datetime] = None
 
@@ -54,6 +56,7 @@ class TransactionResponse(BaseModel):
     amount: float
     transaction_type: str
     category: str
+    sub_category: Optional[str] = None
     description: Optional[str] = None
     transaction_date: datetime
     created_at: datetime
