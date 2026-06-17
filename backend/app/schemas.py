@@ -60,3 +60,10 @@ class TransactionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TransactionListResponse(BaseModel):
+    page: int
+    limit: int
+    total: int
+    items: list[TransactionResponse]

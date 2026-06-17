@@ -1,10 +1,18 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Transaction
-from app.schemas import TransactionCreate, TransactionResponse, TransactionUpdate
+from app.schemas import (
+    TransactionCreate,
+    TransactionListResponse,
+    TransactionResponse,
+    TransactionUpdate,
+)
 from app.models import User
 
 router = APIRouter(
@@ -63,18 +71,63 @@ def create_transaction(
     return new_transaction
 
 
-@router.get("/", response_model=list[TransactionResponse])
+@router.get("/", response_model=TransactionListResponse)
 def list_transactions(
+    transaction_type: str | None = None,
+    category: str | None = None,
+    search: str | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    page: int = 1,
+    limit: int = 10,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    transactions = (
-        db.query(Transaction)
-        .filter(Transaction.user_id == current_user.id)
-        .order_by(Transaction.transaction_date.desc())
+    if transaction_type is not None:
+        _validate_transaction_type(transaction_type)
+
+    if page < 1:
+        page = 1
+    if limit < 1:
+        limit = 10
+
+    query = db.query(Transaction).filter(Transaction.user_id == current_user.id)
+
+    if transaction_type is not None:
+        query = query.filter(Transaction.transaction_type == transaction_type)
+
+    if category is not None:
+        query = query.filter(Transaction.category == category)
+
+    if search is not None:
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            or_(
+                Transaction.title.ilike(search_pattern),
+                Transaction.description.ilike(search_pattern),
+            )
+        )
+
+    if start_date is not None:
+        query = query.filter(Transaction.transaction_date >= start_date)
+
+    if end_date is not None:
+        query = query.filter(Transaction.transaction_date <= end_date)
+
+    total = query.count()
+    items = (
+        query.order_by(Transaction.transaction_date.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
         .all()
     )
-    return transactions
+
+    return {
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "items": items,
+    }
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)
