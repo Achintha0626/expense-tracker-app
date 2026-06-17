@@ -5,6 +5,9 @@ from app.database import get_db
 from app.models import User
 from app.schemas import UserCreate, UserResponse
 from app.auth import hash_password
+from app.schemas import UserCreate, UserResponse, UserLogin, Token
+from app.auth import hash_password, verify_password
+from app.security import create_access_token
 
 router = APIRouter(
     prefix="/auth",
@@ -44,3 +47,36 @@ def register_user(
     db.refresh(new_user)
 
     return new_user
+
+
+@router.post("/login", response_model=Token)
+def login_user(
+    user: UserLogin,
+    db: Session = Depends(get_db)
+):
+    db_user = (
+        db.query(User)
+        .filter(User.email == user.email)
+        .first()
+    )
+
+    if not db_user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    if not verify_password(user.password, db_user.password):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    token = create_access_token(
+        data={"sub": db_user.email, "user_id": db_user.id}
+    )
+
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
