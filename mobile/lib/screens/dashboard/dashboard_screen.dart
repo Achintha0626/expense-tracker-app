@@ -7,6 +7,7 @@ import '../../models/dashboard_summary.dart';
 import '../../models/transaction_item.dart';
 import '../auth/login_screen.dart';
 import '../transactions/add_transaction_screen.dart';
+import '../transactions/transactions_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -135,6 +136,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const Text('Dashboard'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.list),
+            onPressed: () async {
+              final changed = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(builder: (_) => const TransactionsScreen()),
+              );
+              if (changed == true) await _loadDashboard();
+            },
+            tooltip: 'View All Transactions',
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,

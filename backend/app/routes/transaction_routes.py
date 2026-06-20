@@ -76,6 +76,7 @@ def create_transaction(
 def list_transactions(
     transaction_type: str | None = None,
     category: str | None = None,
+    sub_category: str | None = None,
     search: str | None = None,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
@@ -100,12 +101,17 @@ def list_transactions(
     if category is not None:
         query = query.filter(Transaction.category == category)
 
+    if sub_category is not None:
+        query = query.filter(Transaction.sub_category == sub_category)
+
     if search is not None:
         search_pattern = f"%{search}%"
         query = query.filter(
             or_(
                 Transaction.title.ilike(search_pattern),
                 Transaction.description.ilike(search_pattern),
+                Transaction.category.ilike(search_pattern),
+                Transaction.sub_category.ilike(search_pattern),
             )
         )
 
@@ -129,6 +135,38 @@ def list_transactions(
         "total": total,
         "items": items,
     }
+
+
+@router.get("/categories")
+def get_categories(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    categories = (
+        db.query(Transaction.category)
+        .filter(Transaction.user_id == current_user.id)
+        .distinct()
+        .order_by(Transaction.category)
+        .all()
+    )
+    return [category for (category,) in categories if category is not None]
+
+
+@router.get("/subcategories")
+def get_subcategories(
+    category: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    subcategories = (
+        db.query(Transaction.sub_category)
+        .filter(Transaction.user_id == current_user.id)
+        .filter(Transaction.category == category)
+        .distinct()
+        .order_by(Transaction.sub_category)
+        .all()
+    )
+    return [sub for (sub,) in subcategories if sub is not None]
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)

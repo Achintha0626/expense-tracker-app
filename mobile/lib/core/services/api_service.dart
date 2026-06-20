@@ -54,6 +54,51 @@ class ApiService {
     }
   }
 
+  static Future<http.Response> put(
+    String endpoint,
+    Map<String, dynamic> body, {
+    String? token,
+  }) async {
+    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+
+    try {
+      final response = await http
+          .put(uri, headers: _headers(token), body: jsonEncode(body))
+          .timeout(_timeout);
+      return _handleResponse(response);
+    } on SocketException {
+      throw 'Cannot connect to server. Please check your internet or try again.';
+    } on http.ClientException {
+      throw 'Cannot connect to server. Please check your internet or try again.';
+    } on TimeoutException {
+      throw 'Request timed out. Please try again.';
+    } catch (_) {
+      throw 'Something went wrong. Please try again.';
+    }
+  }
+
+  static Future<http.Response> delete(
+    String endpoint, {
+    String? token,
+  }) async {
+    final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+
+    try {
+      final response = await http
+          .delete(uri, headers: _headers(token))
+          .timeout(_timeout);
+      return _handleResponse(response);
+    } on SocketException {
+      throw 'Cannot connect to server. Please check your internet or try again.';
+    } on http.ClientException {
+      throw 'Cannot connect to server. Please check your internet or try again.';
+    } on TimeoutException {
+      throw 'Request timed out. Please try again.';
+    } catch (_) {
+      throw 'Something went wrong. Please try again.';
+    }
+  }
+
   static http.Response _handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return response;
