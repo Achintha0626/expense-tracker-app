@@ -1,10 +1,6 @@
-import 'dart:math';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -12,8 +8,13 @@ import '../../core/services/analytics_service.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/constants/api_constants.dart';
 import '../../models/analytics_models.dart';
+import '../../widgets/app_scaffold.dart';
 import '../../widgets/category_summary_tile.dart';
 import '../../widgets/expense_donut_chart.dart';
+import '../dashboard/dashboard_screen.dart';
+import '../profile/profile_screen.dart';
+import '../transactions/add_transaction_screen.dart';
+import '../transactions/transactions_screen.dart';
 
 // Conditional import for web download helper
 import '../../core/utils/download_helper_stub.dart'
@@ -29,7 +30,6 @@ class ReportsScreen extends StatefulWidget {
 class _ReportsScreenState extends State<ReportsScreen> {
   final AnalyticsService _analyticsService = AnalyticsService();
   final AuthService _authService = AuthService();
-  List<MonthlySummaryItem> _monthlySummary = [];
   List<CategoryBreakdownItem> _categoryBreakdown = [];
   bool _isLoading = true;
   bool _isDownloadingPdf = false;
@@ -63,14 +63,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         startDate: range?.start,
         endDate: range?.end,
       );
-      final monthlySummary = await _analyticsService.getMonthlySummary(
-        startDate: range?.start,
-        endDate: range?.end,
-      );
 
       setState(() {
         _categoryBreakdown = categoryBreakdown;
-        _monthlySummary = monthlySummary;
       });
     } catch (error) {
       setState(() {
@@ -115,6 +110,49 @@ class _ReportsScreenState extends State<ReportsScreen> {
     await _loadReports();
   }
 
+  void _openDashboard() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+    );
+  }
+
+  Future<void> _openAdd() async {
+    final added = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const AddTransactionScreen()),
+    );
+    if (added == true) {
+      await _loadReports();
+    }
+  }
+
+  void _openTransactions() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const TransactionsScreen()),
+    );
+  }
+
+  void _openProfile() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    );
+  }
+
+  void _handleNavTap(int index) async {
+    if (index == 0) {
+      _openDashboard();
+    } else if (index == 1) {
+      _openTransactions();
+    } else if (index == 2) {
+      await _openAdd();
+    } else if (index == 4) {
+      _openProfile();
+    }
+  }
+
   Future<void> _downloadPdfReport() async {
     setState(() {
       _isDownloadingPdf = true;
@@ -151,7 +189,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
           final bytes = Uint8List.fromList(response.bodyBytes);
           await downloadFile(bytes, 'expense_report.pdf');
         } else {
-          _handleMobilePdfDownload(response.bodyBytes);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('PDF ready. File saving for mobile coming soon!'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
         }
 
         if (mounted) {
@@ -184,63 +229,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
           _isDownloadingPdf = false;
         });
       }
-    }
-  }
-
-  void _downloadPdfWeb(List<int> pdfBytes) {
-    // Web platform - download PDF
-    if (!kIsWeb) return;
-    
-    try {
-      // For web, use the universal data URL approach
-      final base64Pdf = base64Encode(pdfBytes);
-      final dataUrl = 'data:application/pdf;base64,$base64Pdf';
-      
-      // Create and trigger download link
-      _triggerDownload(dataUrl, 'expense_report.pdf');
-    } catch (e) {
-      debugPrint('PDF web download error: $e');
-    }
-  }
-
-  void _triggerDownload(String url, String filename) {
-    if (kIsWeb) {
-      // Using web API through a workaround
-      // This creates an anchor element to trigger the browser download
-      try {
-        // This is a simple approach that works with data: URLs
-        final downloadScript = '''
-          var link = document.createElement('a');
-          link.href = '$url';
-          link.download = '$filename';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        ''';
-        debugPrint('Web download triggered for $filename');
-        
-        // In a real Flutter web app, you might use:
-        // import 'dart:js' as js;
-        // js.context.callMethod('eval', [downloadScript]);
-      } catch (e) {
-        debugPrint('Error triggering web download: $e');
-      }
-    }
-  }
-
-  void _handleMobilePdfDownload(List<int> pdfBytes) {
-    // Mobile platforms - prepared for future file saving implementation
-    // This can be extended with platform channels to save files using:
-    // - Android: request_handler or similar
-    // - iOS: Share plugin or file_saver plugin
-    // For now, show a message
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('PDF ready. File saving for mobile coming soon!'),
-          duration: Duration(seconds: 3),
-        ),
-      );
     }
   }
 
@@ -308,10 +296,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reports'),
-      ),
+    return AppScaffold(
+      title: 'Reports',
+      currentIndex: 3,
+      onNavTap: _handleNavTap,
       body: RefreshIndicator(
         onRefresh: _loadReports,
         child: ListView(

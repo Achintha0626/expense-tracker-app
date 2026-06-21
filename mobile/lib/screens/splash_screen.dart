@@ -13,11 +13,42 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   final AuthService _authService = AuthService();
+  String _loadingText = 'Starting server...';
 
   @override
   void initState() {
     super.initState();
-    _checkAuthentication();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    // First, try to wake up the server with a health check
+    await _performHealthCheck();
+    
+    // Then check authentication
+    if (!mounted) return;
+    await _checkAuthentication();
+  }
+
+  Future<void> _performHealthCheck() async {
+    try {
+      final isHealthy = await _authService.healthCheck();
+      if (!mounted) return;
+      if (!isHealthy) {
+        setState(() {
+          _loadingText = 'Server may still be waking up. First request may take a moment.';
+        });
+        // Wait briefly to show the message
+        await Future.delayed(const Duration(seconds: 2));
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingText = 'Server may still be waking up. First request may take a moment.';
+      });
+      // Wait briefly to show the message
+      await Future.delayed(const Duration(seconds: 2));
+    }
   }
 
   Future<void> _checkAuthentication() async {
@@ -38,9 +69,16 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       body: Center(
-        child: CircularProgressIndicator(),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(_loadingText),
+          ],
+        ),
       ),
     );
   }

@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import '../constants/api_constants.dart';
 
 class ApiService {
-  static const Duration _timeout = Duration(seconds: 30);
+  static const Duration _timeout = Duration(seconds: 75);
 
   static Future<http.Response> post(
     String endpoint,

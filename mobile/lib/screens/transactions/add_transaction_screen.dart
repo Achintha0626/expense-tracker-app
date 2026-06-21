@@ -21,6 +21,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   String _transactionType = 'expense';
   String? _category;
+  List<String> _subCategorySuggestions = [];
+  bool _isLoadingSubCategories = false;
+  bool _subCategorySuggestionsFailed = false;
   bool _isSaving = false;
 
   static const Map<String, List<String>> _categoryOptions = {
@@ -47,6 +50,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   void initState() {
     super.initState();
     _category = _categoryOptions[_transactionType]!.first;
+    _loadSubCategorySuggestions();
   }
 
   @override
@@ -55,6 +59,111 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     _amountController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSubCategorySuggestions() async {
+    final category = _category;
+    if (category == null || category.isEmpty) {
+      setState(() {
+        _subCategorySuggestions = [];
+        _isLoadingSubCategories = false;
+        _subCategorySuggestionsFailed = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingSubCategories = true;
+      _subCategorySuggestionsFailed = false;
+      _subCategorySuggestions = [];
+    });
+
+    try {
+      final suggestions = await _transactionService.getSubCategories(category);
+      if (!mounted) return;
+      setState(() {
+        _subCategorySuggestions = suggestions;
+        _isLoadingSubCategories = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _subCategorySuggestions = [];
+        _isLoadingSubCategories = false;
+        _subCategorySuggestionsFailed = true;
+      });
+    }
+  }
+
+  void _setTransactionType(String value) {
+    setState(() {
+      _transactionType = value;
+      _category = _categoryOptions[value]!.first;
+      _subCategoryController.clear();
+      _subCategorySuggestions = [];
+      _subCategorySuggestionsFailed = false;
+    });
+    _loadSubCategorySuggestions();
+  }
+
+  void _setCategory(String value) {
+    setState(() {
+      _category = value;
+      _subCategoryController.clear();
+      _subCategorySuggestions = [];
+      _subCategorySuggestionsFailed = false;
+    });
+    _loadSubCategorySuggestions();
+  }
+
+  Widget _buildSubCategorySuggestions() {
+    if (_isLoadingSubCategories) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Text(
+          'Loading sub categories...',
+          style: TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
+    if (_subCategorySuggestionsFailed) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Text(
+          'Could not load suggestions. You can type manually.',
+          style: TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
+    if (_subCategorySuggestions.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Text(
+          'No previous sub categories. Type a new one.',
+          style: TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _subCategorySuggestions.map((suggestion) {
+          return ActionChip(
+            label: Text(suggestion),
+            onPressed: () {
+              setState(() {
+                _subCategoryController.text = suggestion;
+              });
+            },
+          );
+        }).toList(),
+      ),
+    );
   }
 
   Future<void> _saveTransaction() async {
@@ -165,10 +274,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 ],
                 onChanged: (value) {
                   if (value == null) return;
-                  setState(() {
-                    _transactionType = value;
-                    _category = _categoryOptions[value]!.first;
-                  });
+                  _setTransactionType(value);
                 },
               ),
               const SizedBox(height: 16),
@@ -183,9 +289,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     .toList(),
                 onChanged: (value) {
                   if (value == null) return;
-                  setState(() {
-                    _category = value;
-                  });
+                  _setCategory(value);
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -203,6 +307,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 ),
                 maxLines: 1,
               ),
+              _buildSubCategorySuggestions(),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descriptionController,

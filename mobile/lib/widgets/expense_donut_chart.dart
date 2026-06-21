@@ -68,7 +68,7 @@ class ExpenseDonutChart extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    NumberFormat.currency(locale: 'en_LK', symbol: 'LKR ').format(total),
+                    NumberFormat.currency(locale: 'en_LK', symbol: 'Rs. ').format(total),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ],
@@ -92,7 +92,7 @@ class ExpenseDonutChart extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  NumberFormat.currency(locale: 'en_LK', symbol: 'LKR ').format(item.amount),
+                  NumberFormat.currency(locale: 'en_LK', symbol: 'Rs. ').format(item.amount),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(width: 8),

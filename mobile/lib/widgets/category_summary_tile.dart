@@ -50,7 +50,7 @@ class CategorySummaryTile extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Text(
-            NumberFormat.currency(locale: 'en_LK', symbol: 'LKR ').format(item.amount),
+            NumberFormat.currency(locale: 'en_LK', symbol: 'Rs. ').format(item.amount),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

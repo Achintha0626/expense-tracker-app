@@ -53,4 +53,13 @@ class AuthService {
     final token = await getToken();
     return ApiService.get('/me', token: token);
   }
+
+  Future<bool> healthCheck() async {
+    try {
+      final response = await ApiService.get('/health');
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
 }

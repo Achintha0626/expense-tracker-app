@@ -23,6 +23,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
   String _transactionType = 'expense';
   String? _category;
+  List<String> _subCategorySuggestions = [];
+  bool _isLoadingSubCategories = false;
+  bool _subCategorySuggestionsFailed = false;
   bool _isSaving = false;
 
   static const Map<String, List<String>> _categoryOptions = {
@@ -55,6 +58,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     _descriptionController = TextEditingController(text: t.description ?? '');
     _transactionType = t.transactionType;
     _category = _categoryOptions[_transactionType]!.contains(t.category) ? t.category : _categoryOptions[_transactionType]!.first;
+    _loadSubCategorySuggestions();
   }
 
   @override
@@ -64,6 +68,109 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     _subCategoryController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSubCategorySuggestions() async {
+    final category = _category;
+    if (category == null || category.isEmpty) {
+      setState(() {
+        _subCategorySuggestions = [];
+        _isLoadingSubCategories = false;
+        _subCategorySuggestionsFailed = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingSubCategories = true;
+      _subCategorySuggestionsFailed = false;
+      _subCategorySuggestions = [];
+    });
+
+    try {
+      final suggestions = await _service.getSubCategories(category);
+      if (!mounted) return;
+      setState(() {
+        _subCategorySuggestions = suggestions;
+        _isLoadingSubCategories = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _subCategorySuggestions = [];
+        _isLoadingSubCategories = false;
+        _subCategorySuggestionsFailed = true;
+      });
+    }
+  }
+
+  void _setTransactionType(String value) {
+    setState(() {
+      _transactionType = value;
+      _category = _categoryOptions[value]!.first;
+      _subCategoryController.clear();
+      _subCategorySuggestions = [];
+      _subCategorySuggestionsFailed = false;
+    });
+    _loadSubCategorySuggestions();
+  }
+
+  void _setCategory(String? value) {
+    if (value == null) return;
+    setState(() {
+      _category = value;
+      _subCategoryController.clear();
+      _subCategorySuggestions = [];
+      _subCategorySuggestionsFailed = false;
+    });
+    _loadSubCategorySuggestions();
+  }
+
+  Widget _buildSubCategorySuggestions() {
+    if (_isLoadingSubCategories) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Text('Loading sub categories...', style: TextStyle(fontSize: 12)),
+      );
+    }
+
+    if (_subCategorySuggestionsFailed) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Text(
+          'Could not load suggestions. You can type manually.',
+          style: TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
+    if (_subCategorySuggestions.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Text(
+          'No previous sub categories. Type a new one.',
+          style: TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _subCategorySuggestions.map((suggestion) {
+          return ActionChip(
+            label: Text(suggestion),
+            onPressed: () {
+              setState(() {
+                _subCategoryController.text = suggestion;
+              });
+            },
+          );
+        }).toList(),
+      ),
+    );
   }
 
   Future<void> _save() async {
@@ -150,10 +257,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                 ],
                 onChanged: (value) {
                   if (value == null) return;
-                  setState(() {
-                    _transactionType = value;
-                    _category = _categoryOptions[value]!.first;
-                  });
+                  _setTransactionType(value);
                 },
               ),
               const SizedBox(height: 12),
@@ -161,7 +265,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                 decoration: const InputDecoration(labelText: 'Category'),
                 initialValue: _category,
                 items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: (v) => setState(() => _category = v),
+                onChanged: _setCategory,
                 validator: (v) => (v == null || v.isEmpty) ? 'Category is required.' : null,
               ),
               const SizedBox(height: 12),
@@ -169,6 +273,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                 controller: _subCategoryController,
                 decoration: const InputDecoration(labelText: 'Sub Category (optional)'),
               ),
+              _buildSubCategorySuggestions(),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _descriptionController,

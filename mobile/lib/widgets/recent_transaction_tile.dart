@@ -63,7 +63,7 @@ class RecentTransactionTile extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                NumberFormat.currency(locale: 'en_LK', symbol: 'LKR ').format(transaction.amount),
+                NumberFormat.currency(locale: 'en_LK', symbol: 'Rs. ').format(transaction.amount),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: amountColor, fontWeight: FontWeight.w700),
               ),
             ],

@@ -3,6 +3,12 @@ import 'package:intl/intl.dart';
 
 import '../../core/services/transaction_service.dart';
 import '../../models/transaction_item.dart';
+import '../../widgets/app_scaffold.dart';
+import '../../widgets/transaction_card.dart';
+import '../dashboard/dashboard_screen.dart';
+import '../profile/profile_screen.dart';
+import '../reports/reports_screen.dart';
+import 'add_transaction_screen.dart';
 import 'edit_transaction_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
@@ -254,9 +260,48 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
-  String _formatCurrency(double value, bool isExpense) {
-    final formatted = NumberFormat.simpleCurrency(locale: 'en_US').format(value);
-    return isExpense ? '-$formatted' : '+$formatted';
+  void _openDashboard() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+    );
+  }
+
+  Future<void> _openAdd() async {
+    final added = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const AddTransactionScreen()),
+    );
+
+    if (added == true) {
+      await _load(search: _searchController.text.trim());
+    }
+  }
+
+  void _openReports() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const ReportsScreen()),
+    );
+  }
+
+  void _openProfile() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    );
+  }
+
+  void _handleNavTap(int index) async {
+    if (index == 0) {
+      _openDashboard();
+    } else if (index == 2) {
+      await _openAdd();
+    } else if (index == 3) {
+      _openReports();
+    } else if (index == 4) {
+      _openProfile();
+    }
   }
 
   void _showSnackbar(String message) {
@@ -264,39 +309,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   Widget _buildItem(TransactionItem t) {
-    final categoryText = t.subCategory != null && t.subCategory!.isNotEmpty
-        ? '${t.category} • ${t.subCategory}'
-        : t.category;
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-      child: ListTile(
-        title: Text(t.title),
-        subtitle: Text('$categoryText • ${DateFormat.yMMMd().format(t.transactionDate)}'),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _formatCurrency(t.amount, t.isExpense),
-              style: TextStyle(
-                color: t.isExpense ? Colors.redAccent : Colors.green,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 12),
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () => _onEdit(t),
-              tooltip: 'Edit',
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () => _onDelete(t),
-              tooltip: 'Delete',
-            ),
-          ],
-        ),
-      ),
+    return TransactionCard(
+      transaction: t,
+      onEdit: () => _onEdit(t),
+      onDelete: () => _onDelete(t),
     );
   }
 
@@ -308,10 +324,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       if (_selectedSubCategory != null) 'Sub Category: $_selectedSubCategory',
     ];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Transactions'),
-      ),
+    return AppScaffold(
+      title: 'Transactions',
+      currentIndex: 1,
+      onNavTap: _handleNavTap,
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: Column(
@@ -396,7 +412,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           style: Theme.of(context).textTheme.bodyLarge,
                         ),
                       ),
-                      TextButton(
+                      OutlinedButton(
                         onPressed: _clearFilters,
                         child: const Text('Clear Filters'),
                       ),
