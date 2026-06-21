@@ -70,13 +70,38 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFFFBFA),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(_loadingText),
+            Image.asset(
+              'lib/assets/app_icon.png',
+              width: 120,
+              height: 120,
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Expense Tracker',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF2F2F2F),
+              ),
+            ),
+            const SizedBox(height: 48),
+            const CircularProgressIndicator(
+              color: Color(0xFFE97D7D),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              _loadingText,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF6F6A6A),
+              ),
+            ),
           ],
         ),
       ),

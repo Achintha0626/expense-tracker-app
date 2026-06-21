@@ -156,6 +156,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
+                                    Center(
+                                      child: Image.asset(
+                                        'lib/assets/app_icon.png',
+                                        width: 60,
+                                        height: 60,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
                                     Text(
                                       'Sign in',
                                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
