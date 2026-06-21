@@ -227,42 +227,48 @@ def generate_pdf_report(
     # 6. Category Spending Summary
     if category_spending:
         story.append(Paragraph("Category Spending Summary", heading_style))
-        # For each category, show total then list sub-categories (expenses only)
+        category_data = [["Category", "Total Expense"]]
         for category, amount in sorted(category_spending.items(), key=lambda x: x[1], reverse=True):
-            story.append(Paragraph(category, ParagraphStyle('cat', parent=styles['Heading3'], spaceBefore=8)))
-            story.append(Paragraph(f"Total: Rs. {amount:,.2f}", normal_style))
+            category_data.append([category, f"Rs. {amount:,.2f}"])
 
-            # Find sub-categories for this category
-            subs = [
-                (sub, val)
-                for (cat, sub), val in subcategory_spending.items()
-                if cat == category
-            ]
+        category_table = Table(category_data, colWidths=[3*inch, 2*inch])
+        category_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#FF9800')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fff3e0')])
+        ]))
+        story.append(category_table)
+        story.append(Spacer(1, 0.3*inch))
 
-            if subs:
-                # Build a simple two-column table for sub-categories
-                sub_rows = [["Sub-Category", "Amount"]]
-                for sub, val in sorted(subs, key=lambda x: x[1], reverse=True):
-                    sub_rows.append([f"  - {sub}", f"Rs. {val:,.2f}"])
+    if subcategory_spending:
+        story.append(Paragraph("Sub-Category Spending Summary", heading_style))
 
-                sub_table = Table(sub_rows, colWidths=[3*inch, 2*inch])
-                sub_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E0E0E0')),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                    ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 9),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                    ('FONTSIZE', (0, 1), (-1, -1), 9),
-                ]))
-                story.append(sub_table)
-            else:
-                story.append(Paragraph("No sub-categories", normal_style))
+        subcategory_data = [["Category", "Sub-Category", "Total Expense"]]
+        for (category, subcategory), amount in sorted(subcategory_spending.items(), key=lambda x: x[1], reverse=True):
+            subcategory_data.append([category, subcategory or "N/A", f"Rs. {amount:,.2f}"])
 
-            story.append(Spacer(1, 0.15*inch))
-    
-    # Removed separate Sub-Category Spending Summary per requirements.
+        subcategory_table = Table(subcategory_data, colWidths=[1.8*inch, 1.8*inch, 1.4*inch])
+        subcategory_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#9C27B0')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3e5f5')])
+        ]))
+        story.append(subcategory_table)
+        story.append(Spacer(1, 0.3*inch))
     
     # 8. Full Transaction Table
     if transactions:
