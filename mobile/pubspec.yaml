@@ -39,6 +39,9 @@ dependencies:
   intl: ^0.20.2
   fl_chart: ^1.2.0
   lucide_icons: ^0.257.0
+  path_provider: ^2.1.6
+  open_filex: ^4.7.0
+  permission_handler: ^12.0.3
 
 dev_dependencies:
   flutter_test:

@@ -1,7 +1,9 @@
-import 'package:http/http.dart' as http;
+import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 import '../../core/services/analytics_service.dart';
@@ -18,7 +20,7 @@ import '../transactions/transactions_screen.dart';
 
 // Conditional import for web download helper
 import '../../core/utils/download_helper_stub.dart'
-  if (dart.library.html) '../../core/utils/download_helper_web.dart';
+    if (dart.library.html) '../../core/utils/download_helper_web.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -99,7 +101,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
       context: context,
       firstDate: DateTime(now.year - 3),
       lastDate: DateTime(now.year + 1),
-      initialDateRange: _customRange ?? DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now),
+      initialDateRange:
+          _customRange ??
+          DateTimeRange(
+            start: now.subtract(const Duration(days: 30)),
+            end: now,
+          ),
     );
     if (selected == null) return;
 
@@ -176,53 +183,46 @@ class _ReportsScreenState extends State<ReportsScreen> {
       }
 
       final uri = Uri.parse(url);
-      final response = await http.get(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/pdf',
-        },
-      );
+      final response = await http
+          .get(
+            uri,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Accept': 'application/pdf',
+            },
+          )
+          .timeout(const Duration(seconds: 75));
 
       if (response.statusCode == 200) {
+        final bytes = Uint8List.fromList(response.bodyBytes);
+
         if (kIsWeb) {
-          final bytes = Uint8List.fromList(response.bodyBytes);
           await downloadFile(bytes, 'expense_report.pdf');
+          _showPdfMessage('PDF saved successfully');
         } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('PDF ready. File saving for mobile coming soon!'),
-                duration: Duration(seconds: 3),
-              ),
-            );
+          final result = await downloadFile(bytes, 'expense_report.pdf');
+          _showPdfMessage('PDF saved successfully');
+
+          if (!result.opened) {
+            final path = result.path ?? 'unknown location';
+            final openError = result.openError;
+            final message = openError == null || openError.isEmpty
+                ? 'Could not open PDF. Saved at: $path'
+                : 'Could not open PDF ($openError). Saved at: $path';
+            _showPdfMessage(message, isError: true);
           }
         }
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF report downloaded successfully!'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
       } else {
-        throw 'Failed to download report. Status: ${response.statusCode}';
+        throw _pdfErrorMessage(response);
       }
+    } on TimeoutException {
+      _showPdfError('PDF download timed out. Please try again.');
+    } on http.ClientException {
+      _showPdfError(
+        'Could not download PDF. Check your internet connection and try again.',
+      );
     } catch (error) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Error: $error';
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_errorMessage!),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
+      _showPdfError(error.toString());
     } finally {
       if (mounted) {
         setState(() {
@@ -232,13 +232,49 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
+  String _pdfErrorMessage(http.Response response) {
+    final body = response.body.trim();
+    if (body.isNotEmpty) {
+      try {
+        final data = jsonDecode(body);
+        if (data is Map && data['detail'] != null) {
+          return data['detail'].toString();
+        }
+      } catch (_) {
+        return body;
+      }
+    }
+    return 'Failed to download report (${response.statusCode}).';
+  }
+
+  void _showPdfMessage(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Theme.of(context).colorScheme.error : null,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  void _showPdfError(String message) {
+    if (!mounted) return;
+    setState(() {
+      _errorMessage = message;
+    });
+    _showPdfMessage(message, isError: true);
+  }
+
   String _rangeLabel() {
     if (_selectedRange == 'custom' && _customRange != null) {
       final start = DateFormat.yMMMd().format(_customRange!.start);
       final end = DateFormat.yMMMd().format(_customRange!.end);
       return '$start – $end';
     }
-    return _rangeOptions.firstWhere((option) => option['key'] == _selectedRange)['label']!;
+    return _rangeOptions.firstWhere(
+      (option) => option['key'] == _selectedRange,
+    )['label']!;
   }
 
   Widget _buildRangeChips() {
@@ -273,7 +309,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _buildTopCategories() {
     final expenseItems = _categoryBreakdown
-        .where((item) => !_excludedCategories.contains(item.category) && item.amount > 0)
+        .where(
+          (item) =>
+              !_excludedCategories.contains(item.category) && item.amount > 0,
+        )
         .toList();
 
     if (expenseItems.isEmpty) {
@@ -328,19 +367,26 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       )
                     : const Icon(Icons.download),
                 label: Text(
-                  _isDownloadingPdf ? 'Preparing report...' : 'Download PDF Report',
+                  _isDownloadingPdf
+                      ? 'Preparing report...'
+                      : 'Download PDF Report',
                 ),
               ),
             ),
             const SizedBox(height: 24),
             Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Top Spending Categories', style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'Top Spending Categories',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 16),
                     _buildTopCategories(),
                   ],
@@ -349,13 +395,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
             const SizedBox(height: 20),
             Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Category Breakdown', style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'Category Breakdown',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 14),
                     ExpenseDonutChart(items: _categoryBreakdown),
                   ],
@@ -364,9 +415,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
             const SizedBox(height: 24),
             if (_errorMessage != null) ...[
-              Text(_errorMessage!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(
+                _errorMessage!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
               const SizedBox(height: 16),
-              ElevatedButton(onPressed: _loadReports, child: const Text('Retry')),
+              ElevatedButton(
+                onPressed: _loadReports,
+                child: const Text('Retry'),
+              ),
             ],
             if (_isLoading)
               const Padding(

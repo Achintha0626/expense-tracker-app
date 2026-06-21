@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../../core/services/transaction_service.dart';
 
@@ -37,13 +38,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       'Education',
       'Other',
     ],
-    'income': [
-      'Salary',
-      'Freelance',
-      'Gift',
-      'Investment',
-      'Other',
-    ],
+    'income': ['Salary', 'Freelance', 'Gift', 'Investment', 'Other'],
   };
 
   @override
@@ -57,6 +52,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   void dispose() {
     _titleController.dispose();
     _amountController.dispose();
+    _subCategoryController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -176,38 +172,46 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       return;
     }
 
+    if (_category == null || _category!.isEmpty) {
+      _showSnackbar('Please select a category.');
+      return;
+    }
+
     setState(() {
       _isSaving = true;
     });
 
     try {
+      final subCat = _subCategoryController.text.trim().isEmpty
+          ? null
+          : _subCategoryController.text.trim();
+      final desc = _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim();
+
       final response = await _transactionService.createTransaction(
         title: _titleController.text.trim(),
         amount: amount,
-        transactionType: _transactionType,
+        transactionType: _transactionType.toLowerCase(),
         category: _category!,
-        subCategory: _subCategoryController.text.trim().isEmpty
-            ? null
-            : _subCategoryController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty
-            ? null
-            : _descriptionController.text.trim(),
+        subCategory: subCat,
+        description: desc,
       );
 
+      if (!mounted) return;
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        if (!mounted) return;
         _showSnackbar('Transaction added successfully.');
         Navigator.pop(context, true);
         return;
       }
 
-      final body = jsonDecode(response.body);
-      final errorMessage = body is Map && body['detail'] != null
-          ? body['detail'].toString()
-          : 'Unable to save transaction. Please try again.';
-      _showSnackbar(errorMessage);
+      _showSnackbar(_backendErrorMessage(response));
     } catch (error) {
-      _showSnackbar(error.toString());
+      final errorMsg = error.toString();
+      _showSnackbar(
+        errorMsg.isNotEmpty ? errorMsg : 'Failed to add transaction.',
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -218,9 +222,56 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _backendErrorMessage(http.Response response) {
+    final responseBody = response.body.toString().trim();
+
+    try {
+      final body = jsonDecode(responseBody);
+      if (body is Map) {
+        final detail = body['detail'];
+        if (detail is List) {
+          final validationMessages = detail
+              .map((item) {
+                if (item is Map) {
+                  final location = item['loc'];
+                  final field = location is List && location.isNotEmpty
+                      ? location.last.toString()
+                      : null;
+                  final message = item['msg']?.toString();
+                  if (message != null && message.isNotEmpty) {
+                    return field == null ? message : '$field: $message';
+                  }
+                }
+                return item.toString();
+              })
+              .join('\n');
+
+          if (validationMessages.isNotEmpty) {
+            return validationMessages;
+          }
+        }
+        if (detail != null) {
+          return detail.toString();
+        }
+        if (body['message'] != null) {
+          return body['message'].toString();
+        }
+        if (body['error'] != null) {
+          return body['error'].toString();
+        }
+      }
+    } catch (_) {
+      if (responseBody.isNotEmpty) {
+        return responseBody;
+      }
+    }
+
+    return 'Unable to save transaction (${response.statusCode}).';
   }
 
   @override
@@ -266,7 +317,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Transaction Type'),
+                decoration: const InputDecoration(
+                  labelText: 'Transaction Type',
+                ),
                 initialValue: _transactionType,
                 items: const [
                   DropdownMenuItem(value: 'income', child: Text('Income')),
@@ -282,10 +335,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 decoration: const InputDecoration(labelText: 'Category'),
                 initialValue: _category,
                 items: categories
-                    .map((category) => DropdownMenuItem(
-                          value: category,
-                          child: Text(category),
-                        ))
+                    .map(
+                      (category) => DropdownMenuItem(
+                        value: category,
+                        child: Text(category),
+                      ),
+                    )
                     .toList(),
                 onChanged: (value) {
                   if (value == null) return;
