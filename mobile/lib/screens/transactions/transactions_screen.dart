@@ -24,6 +24,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   String _filterType = ''; // '', 'income', 'expense'
   String? _selectedCategory;
   String? _selectedSubCategory;
+  String _selectedDateFilter = 'all_time';
+  DateTime? _startDate;
+  DateTime? _endDate;
+
+  static const List<Map<String, String>> _dateFilterOptions = [
+    {'key': 'all_time', 'label': 'All Time'},
+    {'key': 'today', 'label': 'Today'},
+    {'key': 'this_week', 'label': 'This Week'},
+    {'key': 'this_month', 'label': 'This Month'},
+    {'key': 'last_month', 'label': 'Last Month'},
+    {'key': 'custom_range', 'label': 'Custom Range'},
+  ];
 
   @override
   void initState() {
@@ -44,6 +56,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         category: _selectedCategory,
         subCategory: _selectedSubCategory,
         search: _searchController.text.trim().isEmpty ? null : _searchController.text.trim(),
+        startDate: _startDate,
+        endDate: _endDate,
         page: 1,
         limit: 50,
       );
@@ -70,6 +84,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         category: _selectedCategory,
         subCategory: _selectedSubCategory,
         search: search,
+        startDate: _startDate,
+        endDate: _endDate,
         page: 1,
         limit: 50,
       );
@@ -111,11 +127,91 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     await _load(search: _searchController.text.trim());
   }
 
+  String _getDateFilterLabel() {
+    switch (_selectedDateFilter) {
+      case 'today':
+        return 'Today';
+      case 'this_week':
+        return 'This Week';
+      case 'this_month':
+        return 'This Month';
+      case 'last_month':
+        return 'Last Month';
+      case 'custom_range':
+        if (_startDate != null && _endDate != null) {
+          final start = DateFormat.yMMMd().format(_startDate!);
+          final end = DateFormat.yMMMd().format(_endDate!);
+          return '$start – $end';
+        }
+        return 'Custom Range';
+      default:
+        return 'All Time';
+    }
+  }
+
+  Future<void> _setDateFilter(String key) async {
+    final now = DateTime.now();
+
+    if (key == 'custom_range') {
+      final selectedRange = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(now.year - 5),
+        lastDate: DateTime(now.year + 1),
+        initialDateRange: _startDate != null && _endDate != null
+            ? DateTimeRange(start: _startDate!, end: _endDate!)
+            : DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
+      );
+
+      if (selectedRange == null) {
+        return;
+      }
+
+      setState(() {
+        _selectedDateFilter = 'custom_range';
+        _startDate = selectedRange.start;
+        _endDate = selectedRange.end;
+      });
+    } else {
+      DateTime start;
+      DateTime end;
+
+      if (key == 'today') {
+        start = DateTime(now.year, now.month, now.day);
+        end = start;
+      } else if (key == 'this_week') {
+        start = now.subtract(Duration(days: now.weekday - 1));
+        end = DateTime(now.year, now.month, now.day);
+      } else if (key == 'this_month') {
+        start = DateTime(now.year, now.month, 1);
+        end = DateTime(now.year, now.month, now.day);
+      } else if (key == 'last_month') {
+        final lastMonthStart = DateTime(now.year, now.month - 1, 1);
+        final lastMonthEnd = DateTime(lastMonthStart.year, lastMonthStart.month + 1, 0);
+        start = lastMonthStart;
+        end = lastMonthEnd;
+      } else {
+        start = DateTime(now.year - 100);
+        end = DateTime(now.year + 100);
+      }
+
+      setState(() {
+        _selectedDateFilter = key;
+        _startDate = start;
+        _endDate = end;
+      });
+    }
+
+    await _load(search: _searchController.text.trim());
+  }
+
   void _clearFilters() {
     setState(() {
       _filterType = '';
       _selectedCategory = null;
       _selectedSubCategory = null;
+      _selectedDateFilter = 'all_time';
+      _startDate = null;
+      _endDate = null;
       _searchController.clear();
     });
     _load();
@@ -290,27 +386,60 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-              child: Row(
+              child: Column(
                 children: [
-                  Expanded(
-                    child: Text(
-                      'Filters (${selectedFilters.length})',
-                      style: Theme.of(context).textTheme.bodyLarge,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Filters (${selectedFilters.length + (_selectedDateFilter != 'all_time' ? 1 : 0)})',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _clearFilters,
+                        child: const Text('Clear Filters'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _dateFilterOptions.map((option) {
+                        final isSelected = option['key'] == _selectedDateFilter;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            label: Text(option['label']!),
+                            selected: isSelected,
+                            onSelected: (_) => _setDateFilter(option['key']!),
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
-                  TextButton(
-                    onPressed: _clearFilters,
-                    child: const Text('Clear Filters'),
-                  ),
+                  const SizedBox(height: 8),
+                  if (_selectedDateFilter != 'all_time')
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Chip(
+                        label: Text(_getDateFilterLabel()),
+                      ),
+                    ),
                 ],
               ),
             ),
-            if (selectedFilters.isNotEmpty)
+            if (selectedFilters.isNotEmpty || _selectedDateFilter != 'all_time')
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: selectedFilters.map((filter) => Text(filter)).toList(),
+                  children: [
+                    ...selectedFilters.map((filter) => Text(filter)),
+                    if (_selectedDateFilter != 'all_time')
+                      Text('Date: ${_getDateFilterLabel()}'),
+                  ],
                 ),
               ),
             const SizedBox(height: 8),

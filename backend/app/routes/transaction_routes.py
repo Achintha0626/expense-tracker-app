@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, date, time
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -74,14 +74,14 @@ def create_transaction(
 
 @router.get("/", response_model=TransactionListResponse)
 def list_transactions(
-    transaction_type: str | None = None,
-    category: str | None = None,
-    sub_category: str | None = None,
-    search: str | None = None,
-    start_date: datetime | None = None,
-    end_date: datetime | None = None,
-    page: int = 1,
-    limit: int = 10,
+    transaction_type: str | None = Query(None, description="Filter by transaction type: income or expense"),
+    category: str | None = Query(None, description="Filter by category"),
+    sub_category: str | None = Query(None, description="Filter by sub-category"),
+    search: str | None = Query(None, description="Search title, description, category, or sub-category"),
+    start_date: date | None = Query(None, description="Filter transactions on or after this date (YYYY-MM-DD)"),
+    end_date: date | None = Query(None, description="Filter transactions on or before this date (YYYY-MM-DD)"),
+    page: int = Query(1, description="Page number for pagination", ge=1),
+    limit: int = Query(10, description="Number of items per page", ge=1),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -116,10 +116,10 @@ def list_transactions(
         )
 
     if start_date is not None:
-        query = query.filter(Transaction.transaction_date >= start_date)
+        query = query.filter(Transaction.transaction_date >= datetime.combine(start_date, time.min))
 
     if end_date is not None:
-        query = query.filter(Transaction.transaction_date <= end_date)
+        query = query.filter(Transaction.transaction_date <= datetime.combine(end_date, time.max))
 
     total = query.count()
     items = (

@@ -1,4 +1,5 @@
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
 import 'api_service.dart';
 import 'auth_service.dart';
@@ -37,15 +38,20 @@ class TransactionService {
     String? category,
     String? subCategory,
     String? search,
+    DateTime? startDate,
+    DateTime? endDate,
     int page = 1,
     int limit = 20,
   }) async {
     final token = await _authService.getToken();
     final params = <String, String>{};
+    final dateFormat = DateFormat('yyyy-MM-dd');
     if (type != null && type.isNotEmpty) params['transaction_type'] = type;
     if (category != null && category.isNotEmpty) params['category'] = category;
     if (subCategory != null && subCategory.isNotEmpty) params['sub_category'] = subCategory;
     if (search != null && search.isNotEmpty) params['search'] = search;
+    if (startDate != null) params['start_date'] = dateFormat.format(startDate);
+    if (endDate != null) params['end_date'] = dateFormat.format(endDate);
     params['page'] = page.toString();
     params['limit'] = limit.toString();
 

@@ -70,3 +70,14 @@ class TransactionListResponse(BaseModel):
     limit: int
     total: int
     items: list[TransactionResponse]
+
+
+class CategoryBreakdownItem(BaseModel):
+    category: str
+    amount: float
+
+
+class MonthlySummaryItem(BaseModel):
+    month: str
+    income: float
+    expense: float
