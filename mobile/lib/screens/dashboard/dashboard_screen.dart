@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -9,8 +8,16 @@ import '../../models/analytics_models.dart';
 import '../../models/dashboard_summary.dart';
 import '../../models/transaction_item.dart';
 import '../auth/login_screen.dart';
+import '../reports/reports_screen.dart';
 import '../transactions/add_transaction_screen.dart';
 import '../transactions/transactions_screen.dart';
+import '../../widgets/balance_card.dart';
+import '../../widgets/bottom_nav_bar.dart';
+import '../../widgets/category_summary_tile.dart';
+import '../../widgets/expense_donut_chart.dart';
+import '../../widgets/monthly_bar_chart.dart';
+import '../../widgets/quick_action_button.dart';
+import '../../widgets/recent_transaction_tile.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -33,12 +40,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _selectedDateFilter = 'this_month';
   DateTime? _startDate;
   DateTime? _endDate;
-
-  static const List<Map<String, String>> _dateFilterOptions = [
-    {'key': 'this_month', 'label': 'This Month'},
-    {'key': 'last_month', 'label': 'Last Month'},
-    {'key': 'custom_range', 'label': 'Custom Range'},
-  ];
 
   @override
   void initState() {
@@ -103,7 +104,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   String _formatCurrency(double value) {
-    return NumberFormat.simpleCurrency(locale: 'en_US').format(value);
+    return NumberFormat.currency(locale: 'en_LK', symbol: 'LKR ').format(value);
   }
 
   String _getDateFilterLabel() {
@@ -160,345 +161,236 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await _loadDashboard();
   }
 
-  Widget _buildSummaryCard(String label, String value, {Color? valueColor}) {
-    return Expanded(
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: valueColor ?? Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTransactionTile(TransactionItem transaction) {
-    final categoryText = transaction.subCategory != null && transaction.subCategory!.isNotEmpty
-        ? '${transaction.category} • ${transaction.subCategory}'
-        : transaction.category;
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        title: Text(transaction.title),
-        subtitle: Text('$categoryText • ${DateFormat.yMMMd().format(transaction.transactionDate)}'),
-        trailing: Text(
-          _formatCurrency(transaction.amount),
-          style: TextStyle(
-            color: transaction.isExpense ? Colors.redAccent : Colors.green,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDateFilterChips() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _dateFilterOptions.map((option) {
-        final isSelected = option['key'] == _selectedDateFilter;
-        return ChoiceChip(
-          label: Text(option['label']!),
-          selected: isSelected,
-          onSelected: (_) => _setDateFilter(option['key']!),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildPieChart() {
+  Widget _buildCategoryList() {
     if (_categoryBreakdown.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final total = _categoryBreakdown.fold<double>(0, (sum, item) => sum + item.amount);
-    if (total <= 0) {
-      return const Center(child: Text('No expense data available for this period.'));
-    }
-
-    return SizedBox(
-      height: 240,
-      child: PieChart(
-        PieChartData(
-          sections: _categoryBreakdown.map((item) {
-            final percentage = item.amount / total;
-            return PieChartSectionData(
-              value: item.amount,
-              title: '${(percentage * 100).toStringAsFixed(0)}%',
-              radius: 70,
-              titleStyle: const TextStyle(
-                fontSize: 12,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            );
-          }).toList(),
-          sectionsSpace: 2,
-          centerSpaceRadius: 30,
-          borderData: FlBorderData(show: false),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Text(
+          'No categories yet.',
+          style: Theme.of(context).textTheme.bodyMedium,
         ),
-      ),
-    );
-  }
-
-  Widget _buildBarChart() {
-    if (_monthlySummary.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final items = _monthlySummary;
-    final maxValue = items.isEmpty
-        ? 1000.0
-        : (items.map((e) => e.income > e.expense ? e.income : e.expense).reduce((a, b) => a > b ? a : b) * 1.2);
-
-    return SizedBox(
-      height: 260,
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
-          maxY: maxValue,
-          barGroups: items.asMap().entries.map((entry) {
-            final index = entry.key;
-            final item = entry.value;
-            return BarChartGroupData(
-              x: index,
-              barRods: [
-                BarChartRodData(toY: item.income, color: Colors.green, width: 8),
-                BarChartRodData(toY: item.expense, color: Colors.redAccent, width: 8),
-              ],
-            );
-          }).toList(),
-          titlesData: FlTitlesData(show: false),
-          gridData: FlGridData(show: true),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopCategories() {
-    if (_categoryBreakdown.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16.0),
-        child: Text('No category breakdown available.'),
       );
     }
-
-    final topCategories = List.of(_categoryBreakdown)
-      ..sort((a, b) => b.amount.compareTo(a.amount));
+    final expenseItems = _categoryBreakdown.where((item) => item.amount > 0).toList();
+    final maxAmount = expenseItems.isNotEmpty ? expenseItems.map((item) => item.amount).reduce((a, b) => a > b ? a : b) : 0.0;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: topCategories.take(3).map((item) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(child: Text(item.category)),
-              Text(_formatCurrency(item.amount)),
-            ],
-          ),
-        );
+      children: expenseItems.take(4).map((item) {
+        return CategorySummaryTile(item: item, progressBase: maxAmount);
       }).toList(),
+    );
+  }
+
+  Widget _buildRecentTransaction(TransactionItem transaction) {
+    return RecentTransactionTile(
+      transaction: transaction,
+      onTap: () {},
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
+      backgroundColor: theme.colorScheme.surfaceContainerHighest.withAlpha(38),
       appBar: AppBar(
         title: const Text('Dashboard'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        foregroundColor: theme.colorScheme.onSurface,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.list),
-            onPressed: () async {
-              final changed = await Navigator.push<bool>(
-                context,
-                MaterialPageRoute(builder: (_) => const TransactionsScreen()),
-              );
-              if (changed == true) await _loadDashboard();
-            },
-            tooltip: 'View All Transactions',
-          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
             tooltip: 'Logout',
-          )
+          ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadDashboard,
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16.0),
-                    children: [
-                      Text(
-                        _errorMessage ?? 'Unable to load dashboard.',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadDashboard,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  )
-                : ListView(
-                    padding: const EdgeInsets.all(16.0),
-                    children: [
-                      Text(
-                        'Overview',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _errorMessage != null
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(16),
                         children: [
-                          _buildSummaryCard(
-                            'Income',
-                            _formatCurrency(_summary?.totalIncome ?? 0),
-                            valueColor: Colors.green,
+                          Text(
+                            _errorMessage ?? 'Unable to load dashboard.',
+                            style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.error),
                           ),
-                          const SizedBox(width: 12),
-                          _buildSummaryCard(
-                            'Expenses',
-                            _formatCurrency(_summary?.totalExpense ?? 0),
-                            valueColor: Colors.redAccent,
+                          const SizedBox(height: 16),
+                          ElevatedButton(onPressed: _loadDashboard, child: const Text('Retry')),
+                        ],
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+                        children: [
+                          Text('Good morning', style: theme.textTheme.bodyLarge),
+                          const SizedBox(height: 6),
+                          Text('Here’s your financial snapshot', style: theme.textTheme.headlineSmall),
+                          const SizedBox(height: 22),
+                          BalanceCard(
+                            title: 'Current Balance',
+                            balance: _formatCurrency(_summary?.balance ?? 0),
+                            income: _formatCurrency(_summary?.totalIncome ?? 0),
+                            expense: _formatCurrency(_summary?.totalExpense ?? 0),
                           ),
+                          const SizedBox(height: 20),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                QuickActionButton(
+                                  icon: Icons.add_circle,
+                                  label: 'Add',
+                                  color: theme.colorScheme.primary,
+                                  onTap: _openAddTransaction,
+                                ),
+                                const SizedBox(width: 12),
+                                QuickActionButton(
+                                  icon: Icons.list_alt,
+                                  label: 'Transactions',
+                                  color: theme.colorScheme.secondary,
+                                  onTap: () async {
+                                    final changed = await Navigator.push<bool>(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const TransactionsScreen()),
+                                    );
+                                    if (changed == true) await _loadDashboard();
+                                  },
+                                ),
+                                const SizedBox(width: 12),
+                                QuickActionButton(
+                                  icon: Icons.insights,
+                                  label: 'Reports',
+                                  color: Colors.deepPurpleAccent,
+                                  onTap: () {
+                                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen()));
+                                  },
+                                ),
+                                const SizedBox(width: 12),
+                                QuickActionButton(
+                                  icon: Icons.person,
+                                  label: 'Profile',
+                                  color: Colors.teal,
+                                  onTap: _showProfileSheet,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Card(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(18),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Expense Summary', style: theme.textTheme.titleMedium),
+                                      Text(_getDateFilterLabel(), style: theme.textTheme.bodySmall),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ExpenseDonutChart(items: _categoryBreakdown),
+                                  const SizedBox(height: 18),
+                                  _buildCategoryList(),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Card(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(18),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Monthly Overview • LKR', style: theme.textTheme.titleMedium),
+                                  const SizedBox(height: 12),
+                                  MonthlyBarChart(data: _monthlySummary),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text('Recent Transactions', style: theme.textTheme.titleMedium),
+                          const SizedBox(height: 12),
+                          if (_transactions.isEmpty)
+                            Text(
+                              'No recent transactions. Add one to start tracking.',
+                              style: theme.textTheme.bodyMedium,
+                            )
+                          else
+                            ..._transactions.take(4).map(_buildRecentTransaction),
+                          const SizedBox(height: 24),
                         ],
                       ),
-                      _buildSummaryCard(
-                        'Balance',
-                        _formatCurrency(_summary?.balance ?? 0),
-                        valueColor: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Transactions: ${_summary?.transactionCount ?? 0}',
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Analytics',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 16),
-                      Card(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Date Range',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 12),
-                              _buildDateFilterChips(),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Selected: ${_getDateFilterLabel()}',
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Text(
-                        'Expense Breakdown',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 12),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: _categoryBreakdown.isEmpty
-                              ? Text(
-                                  'No expense breakdown available for this period.',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                )
-                              : _buildPieChart(),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Monthly Summary',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 12),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: _monthlySummary.isEmpty
-                              ? Text(
-                                  'No monthly summary available for this period.',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                )
-                              : _buildBarChart(),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Top Categories',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 12),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: _buildTopCategories(),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Recent Transactions',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 12),
-                      if (_transactions.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16.0),
-                          child: Text(
-                            'No transactions found. Pull down to refresh after adding transactions.',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        )
-                      else
-                        ..._transactions.map(_buildTransactionTile),
-                    ],
-                  ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: AppBottomNavBar(
+        currentIndex: 0,
+        onTap: (index) async {
+          if (index == 1) {
+            final changed = await Navigator.push<bool>(
+              context,
+              MaterialPageRoute(builder: (_) => const TransactionsScreen()),
+            );
+            if (changed == true) await _loadDashboard();
+          } else if (index == 2) {
+            await _openAddTransaction();
+          } else if (index == 3) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen()));
+          } else if (index == 4) {
+            _showProfileSheet();
+          }
+        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _openAddTransaction,
-        tooltip: 'Add Transaction',
         child: const Icon(Icons.add),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+    );
+  }
+
+  void _showProfileSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Profile', style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 10),
+              Text('Member since 2026', style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: 18),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _logout();
+                },
+                icon: const Icon(Icons.logout),
+                label: const Text('Logout'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

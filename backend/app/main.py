@@ -9,6 +9,7 @@ from app.routes.auth_routes import router as auth_router
 from app.routes.dashboard_routes import router as dashboard_router
 from app.routes.transaction_routes import router as transaction_router
 from app.routes.analytics_routes import router as analytics_router
+from app.routes.report_routes import router as report_router
 from app.dependencies import get_current_user
 from app.models import User
 
@@ -53,6 +54,7 @@ app.include_router(auth_router)
 app.include_router(transaction_router)
 app.include_router(analytics_router)
 app.include_router(dashboard_router)
+app.include_router(report_router)
 
 
 @app.get("/")

@@ -38,6 +38,7 @@ def category_breakdown(
         func.coalesce(func.sum(Transaction.amount), 0.0).label("amount"),
     )
     query = _apply_date_filters(query, start_date, end_date, current_user.id)
+    query = query.filter(Transaction.transaction_type == "expense")
     results = query.group_by(Transaction.category).order_by(func.sum(Transaction.amount).desc()).all()
 
     return [
