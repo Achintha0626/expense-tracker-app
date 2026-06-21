@@ -15,6 +15,10 @@ import '../../models/analytics_models.dart';
 import '../../widgets/category_summary_tile.dart';
 import '../../widgets/expense_donut_chart.dart';
 
+// Conditional import for web download helper
+import '../../core/utils/download_helper_stub.dart'
+  if (dart.library.html) '../../core/utils/download_helper_web.dart';
+
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 
@@ -125,7 +129,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
       final range = _getDateRange();
       String url = '${ApiConstants.baseUrl}/reports/pdf';
-      
+
       if (range != null) {
         final formatter = DateFormat('yyyy-MM-dd');
         final startDate = formatter.format(range.start);
@@ -143,11 +147,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
       );
 
       if (response.statusCode == 200) {
-        // Handle based on platform
         if (kIsWeb) {
-          _downloadPdfWeb(response.bodyBytes);
+          final bytes = Uint8List.fromList(response.bodyBytes);
+          await downloadFile(bytes, 'expense_report.pdf');
         } else {
-          // For mobile platforms - prepare code for file saving later
           _handleMobilePdfDownload(response.bodyBytes);
         }
 
